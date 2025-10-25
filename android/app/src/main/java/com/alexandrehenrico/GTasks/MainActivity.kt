@@ -1,4 +1,4 @@
-package com.gtasks
+package com.alexandrehenrico.GTasks
 
 import android.os.Build
 import android.os.Bundle

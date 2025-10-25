@@ -1,4 +1,4 @@
-package com.gtasks
+package com.alexandrehenrico.GTasks
 
 import android.app.Application
 import android.content.res.Configuration

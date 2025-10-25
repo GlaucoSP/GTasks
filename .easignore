@@ -1,0 +1,73 @@
+# Dependências (serão reinstaladas no servidor)
+node_modules
+
+# Builds locais
+.expo
+dist
+web-build
+android/build
+android/app/build
+ios/build
+
+# Cache do Metro
+.metro-health-check*
+
+# Arquivos de desenvolvimento
+.vscode
+.idea
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Arquivos do sistema
+.DS_Store
+*.pem
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Arquivos temporários
+*.tmp
+*.temp
+.cache
+
+# Documentação e README (opcional)
+README.md
+docs/
+
+# Arquivos de teste (se tiver)
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Arquivos de ambiente local
+.env.local
+.env*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Prettier e ESLint (não necessários no build)
+.prettierrc
+.eslintrc.js
+.eslintignore
+```
+
+## O que está deixando seu projeto pesado:
+
+Provavelmente é:
+1. **`node_modules`** - Se você commitou por engano (não deveria estar no build)
+2. **`android/build`** - Builds antigos do Android
+3. **`.expo`** - Cache do Expo
+4. **Arquivos grandes de mídia** - Imagens muito pesadas em `assets/`
+
+## Verifique também seu `.gitignore`:
+
+Seu `.gitignore` já está bom, mas certifique-se de que o `node_modules` está lá (e você deve ter):
+```
+node_modules/
