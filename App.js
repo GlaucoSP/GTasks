@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
@@ -21,8 +21,15 @@ Notifications.setNotificationHandler({
 });
 
 const App = () => {
-  const { isLoading, isDarkMode, loadData, cleanupExpiredTasks } = useTaskStore();
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const { 
+    isLoading, 
+    isDarkMode, 
+    loadData, 
+    cleanupExpiredTasks,
+    toast,
+    showToast,
+    hideToast,
+  } = useTaskStore();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -32,6 +39,7 @@ const App = () => {
         
         if (!hasPermission) {
           console.warn('⚠️ Permissões de notificação não concedidas');
+          showToast('Permissões de notificação não concedidas', 'warning');
         }
         
         // Carregar dados
@@ -39,33 +47,41 @@ const App = () => {
         
         if (result.success) {
           // Limpar tarefas expiradas
-          await cleanupExpiredTasks();
+          const cleanupResult = await cleanupExpiredTasks();
+          
+          if (cleanupResult.success && cleanupResult.deletedCount > 0) {
+            showToast(
+              `${cleanupResult.deletedCount} tarefa(s) expirada(s) removida(s)`, 
+              'info'
+            );
+          }
         } else {
           console.error('Erro ao carregar dados:', result.error);
+          showToast('Erro ao carregar dados do aplicativo', 'error');
         }
       } catch (error) {
         console.error('Erro na inicialização:', error);
+        showToast('Erro crítico ao inicializar o app', 'error');
       }
     };
     
     initializeApp();
 
     // Configurar limpeza automática diária
-    const cleanupInterval = setInterval(() => {
+    const cleanupInterval = setInterval(async () => {
       console.log('🧹 Executando limpeza automática...');
-      cleanupExpiredTasks();
+      const result = await cleanupExpiredTasks();
+      
+      if (result.success && result.deletedCount > 0) {
+        showToast(
+          `Limpeza automática: ${result.deletedCount} tarefa(s) removida(s)`, 
+          'info'
+        );
+      }
     }, 24 * 60 * 60 * 1000); // A cada 24 horas
 
     return () => clearInterval(cleanupInterval);
   }, []);
-
-  const showToast = (message, type = 'success') => {
-    setToast({ visible: true, message, type });
-  };
-
-  const hideToast = () => {
-    setToast({ ...toast, visible: false });
-  };
 
   if (isLoading) {
     return <SplashScreen />;
@@ -103,6 +119,7 @@ const App = () => {
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       </NavigationContainer>
       
+      {/* Toast Global */}
       <Toast
         visible={toast.visible}
         message={toast.message}

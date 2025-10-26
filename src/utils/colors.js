@@ -28,7 +28,7 @@ export const darkTheme = {
   overlay: 'rgba(0,0,0,0.7)',
 };
 
-// Cores para texto - funcionam bem em ambos os temas
+// Cores para texto das listas
 export const listTextColors = {
   light: [
     '#1C1C1E', // Preto
@@ -56,7 +56,7 @@ export const listTextColors = {
   ]
 };
 
-// Cores de fundo - paletas diferentes para cada tema
+// Cores de fundo das listas
 export const listBackgroundColors = {
   light: [
     '#F2F2F7', // Cinza claro
@@ -82,6 +82,13 @@ export const listBackgroundColors = {
     '#1A3D3A', // Turquesa escuro
     '#3D3A1A', // Amarelo escuro
   ]
+};
+
+// IMPORTANTE: Estrutura unificada para os modais
+// Sempre usa as cores do tema light por padrão, mas adapta-se ao tema atual
+export const listColors = {
+  text: listTextColors.light,
+  background: listBackgroundColors.light,
 };
 
 // Função para obter as cores corretas baseado no tema
@@ -115,6 +122,7 @@ export default {
   darkTheme,
   listTextColors,
   listBackgroundColors,
+  listColors, // ← ADICIONAR ESTA EXPORTAÇÃO
   getListColors,
   taskStatusColors,
   gradients,

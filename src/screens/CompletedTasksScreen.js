@@ -7,6 +7,7 @@ import useTaskStore from "../store/useTaskStore"
 import { lightTheme, darkTheme } from "../utils/colors"
 import { formatDate } from "../utils/dateUtils"
 import ConfirmDialog from "../components/ConfirmDialog"
+import Toast from "../components/Toast"
 
 const CompletedTasksScreen = ({ navigation }) => {
   const {
@@ -19,6 +20,9 @@ const CompletedTasksScreen = ({ navigation }) => {
     setSelectedTasks,
     clearSelections,
     saveData,
+    toast,
+    showToast,
+    hideToast,
   } = useTaskStore()
 
   const theme = isDarkMode ? darkTheme : lightTheme
@@ -76,9 +80,12 @@ const CompletedTasksScreen = ({ navigation }) => {
         title: "Restaurar Tarefa",
         message: `Deseja restaurar "${task.title}" para a lista "${task.originalListTitle}"?`,
         confirmText: "Restaurar",
-        onConfirm: () => {
-          restoreTask(task.id)
-          saveData()
+        onConfirm: async () => {
+          const result = await restoreTask(task.id)
+          if (result.success) {
+            await saveData()
+            showToast('Tarefa restaurada com sucesso! 🔄', 'success')
+          }
           setConfirmDialog({ visible: false })
         },
         onCancel: () => setConfirmDialog({ visible: false }),
@@ -92,10 +99,28 @@ const CompletedTasksScreen = ({ navigation }) => {
       title: "Restaurar Tarefas",
       message: `Deseja restaurar ${selectedTasks.length} tarefa(s) selecionada(s)?`,
       confirmText: "Restaurar",
-      onConfirm: () => {
-        selectedTasks.forEach((taskId) => restoreTask(taskId))
+      onConfirm: async () => {
+        let successCount = 0
+        let errorCount = 0
+
+        for (const taskId of selectedTasks) {
+          const result = await restoreTask(taskId)
+          if (result.success) {
+            successCount++
+          } else {
+            errorCount++
+          }
+        }
+
         clearSelections()
-        saveData()
+        await saveData()
+
+        if (errorCount === 0) {
+          showToast(`${successCount} tarefa(s) restaurada(s)! 🔄`, 'success')
+        } else {
+          showToast(`${successCount} restauradas, ${errorCount} com erro`, 'warning')
+        }
+
         setConfirmDialog({ visible: false })
       },
       onCancel: () => setConfirmDialog({ visible: false }),
@@ -106,11 +131,29 @@ const CompletedTasksScreen = ({ navigation }) => {
     setConfirmDialog({
       visible: true,
       title: "Excluir Permanentemente",
-      message: `Deseja excluir permanentemente ${selectedTasks.length} tarefa(s)?`,
-      onConfirm: () => {
-        selectedTasks.forEach((taskId) => deleteCompletedTask(taskId))
+      message: `Deseja excluir permanentemente ${selectedTasks.length} tarefa(s)? Esta ação não pode ser desfeita.`,
+      onConfirm: async () => {
+        let successCount = 0
+        let errorCount = 0
+
+        for (const taskId of selectedTasks) {
+          const result = await deleteCompletedTask(taskId)
+          if (result.success) {
+            successCount++
+          } else {
+            errorCount++
+          }
+        }
+
         clearSelections()
-        saveData()
+        await saveData()
+
+        if (errorCount === 0) {
+          showToast(`${successCount} tarefa(s) excluída(s) permanentemente`, 'success')
+        } else {
+          showToast(`${successCount} excluídas, ${errorCount} com erro`, 'warning')
+        }
+
         setConfirmDialog({ visible: false })
       },
       onCancel: () => setConfirmDialog({ visible: false }),
@@ -121,10 +164,15 @@ const CompletedTasksScreen = ({ navigation }) => {
     setConfirmDialog({
       visible: true,
       title: "Excluir Todas",
-      message: "Deseja excluir permanentemente todas as tarefas concluídas?",
-      onConfirm: () => {
-        deleteAllCompletedTasks()
-        saveData()
+      message: `Deseja excluir permanentemente todas as ${completedTasks.length} tarefas concluídas? Esta ação não pode ser desfeita.`,
+      onConfirm: async () => {
+        const result = await deleteAllCompletedTasks()
+        
+        if (result.success) {
+          await saveData()
+          showToast('Todas as tarefas foram excluídas', 'success')
+        }
+
         setConfirmDialog({ visible: false })
       },
       onCancel: () => setConfirmDialog({ visible: false }),
@@ -146,14 +194,24 @@ const CompletedTasksScreen = ({ navigation }) => {
       delayLongPress={500}
     >
       {selectionMode && (
-        <View style={[styles.checkbox, { borderColor: theme.border }]}>
-          {selectedTasks.includes(task.id) && <Ionicons name="checkmark" size={16} color={theme.primary} />}
+        <View style={[
+          styles.checkbox, 
+          { 
+            borderColor: theme.border,
+            backgroundColor: selectedTasks.includes(task.id) ? theme.primary : 'transparent'
+          }
+        ]}>
+          {selectedTasks.includes(task.id) && (
+            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+          )}
         </View>
       )}
 
       <View style={styles.taskContent}>
         <Text style={[styles.taskTitle, { color: theme.text }]}>{task.title}</Text>
-        <Text style={[styles.taskInfo, { color: theme.textSecondary }]}>Lista: {task.originalListTitle}</Text>
+        <Text style={[styles.taskInfo, { color: theme.textSecondary }]}>
+          Lista: {task.originalListTitle}
+        </Text>
         <Text style={[styles.taskInfo, { color: theme.textSecondary }]}>
           Concluída em: {formatDate(task.completedAt)}
         </Text>
@@ -168,7 +226,12 @@ const CompletedTasksScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.taskActions}>
-        <View style={[styles.daysCounter, { backgroundColor: theme.warning }]}>
+        <View style={[
+          styles.daysCounter, 
+          { 
+            backgroundColor: task.daysUntilDeletion <= 1 ? theme.error : theme.warning 
+          }
+        ]}>
           <Text style={styles.daysCounterText}>{task.daysUntilDeletion}d</Text>
         </View>
       </View>
@@ -188,13 +251,30 @@ const CompletedTasksScreen = ({ navigation }) => {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={completedTasks}
-          keyExtractor={(item) => item.id}
-          renderItem={renderTask}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        />
+        <>
+          <View style={styles.infoBar}>
+            <View style={styles.infoItem}>
+              <Ionicons name="checkmark-done" size={20} color={theme.primary} />
+              <Text style={styles.infoText}>
+                {completedTasks.length} tarefa{completedTasks.length !== 1 ? 's' : ''} concluída{completedTasks.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
+              <Text style={styles.infoText}>
+                Auto-exclusão em 5 dias
+              </Text>
+            </View>
+          </View>
+
+          <FlatList
+            data={completedTasks}
+            keyExtractor={(item) => item.id}
+            renderItem={renderTask}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          />
+        </>
       )}
 
       <ConfirmDialog
@@ -204,6 +284,13 @@ const CompletedTasksScreen = ({ navigation }) => {
         confirmText={confirmDialog.confirmText}
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
+      />
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
       />
     </SafeAreaView>
   )
@@ -222,6 +309,25 @@ const createStyles = (theme) =>
     headerButton: {
       marginLeft: 16,
     },
+    infoBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: theme.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    infoItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    infoText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      fontWeight: '500',
+    },
     emptyState: {
       flex: 1,
       justifyContent: "center",
@@ -234,6 +340,7 @@ const createStyles = (theme) =>
       textAlign: "center",
       marginTop: 20,
       marginBottom: 12,
+      fontWeight: '600',
     },
     emptySubtext: {
       fontSize: 14,
@@ -260,7 +367,7 @@ const createStyles = (theme) =>
     checkbox: {
       width: 24,
       height: 24,
-      borderRadius: 4,
+      borderRadius: 12,
       borderWidth: 2,
       justifyContent: "center",
       alignItems: "center",
@@ -272,28 +379,32 @@ const createStyles = (theme) =>
     taskTitle: {
       fontSize: 16,
       fontWeight: "600",
-      marginBottom: 4,
+      marginBottom: 6,
     },
     taskInfo: {
       fontSize: 12,
-      marginBottom: 2,
+      marginBottom: 3,
     },
     taskDescription: {
       fontSize: 12,
       fontStyle: "italic",
-      marginTop: 4,
+      marginTop: 6,
+      lineHeight: 16,
     },
     taskActions: {
       alignItems: "center",
+      marginLeft: 8,
     },
     daysCounter: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       borderRadius: 12,
+      minWidth: 36,
+      alignItems: 'center',
     },
     daysCounterText: {
       color: "#FFFFFF",
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: "bold",
     },
   })

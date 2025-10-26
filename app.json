@@ -3,6 +3,7 @@
     "name": "GTasks",
     "slug": "GTasks",
     "version": "1.0.0",
+    "scheme": "gtasks",
     "extra": {
       "eas": {
         "projectId": "44efa3f3-6aca-4f26-a387-faf323c4882e"
