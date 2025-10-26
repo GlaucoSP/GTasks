@@ -3,15 +3,18 @@
     "name": "GTasks",
     "slug": "GTasks",
     "version": "1.0.0",
-    "android": {
-      "newArchEnabled": true,
-      "package": "com.alexandrehenrico.GTasks"
-    },
     "extra": {
       "eas": {
         "projectId": "44efa3f3-6aca-4f26-a387-faf323c4882e"
       }
     },
-    "owner": "glauco_pinheiro"
+    "owner": "glauco_pinheiro",
+    "plugins": [
+      "expo-font",
+      "expo-asset"
+    ],
+    "android": {
+      "package": "com.glauco_pinheiro.GTasks"
+    }
   }
 }

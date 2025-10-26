@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, SafeAreaView } from "react-native"
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, SafeAreaView, Animated } from "react-native"
 import { AntDesign, MaterialIcons, Ionicons } from "@expo/vector-icons"
 import useTaskStore from "../store/useTaskStore"
 import { lightTheme, darkTheme } from "../utils/colors"
@@ -12,6 +12,7 @@ import ListModal from "../components/ListModal"
 import TaskModal from "../components/TaskModal"
 import TaskDetailsModal from "../components/TaskDetailsModal"
 import ConfirmDialog from "../components/ConfirmDialog"
+import SearchFilterBar from "../components/SearchFilterBar"
 
 const HomeScreen = ({ navigation }) => {
   const {
@@ -19,6 +20,8 @@ const HomeScreen = ({ navigation }) => {
     selectedLists,
     selectedTasks,
     isDarkMode,
+    searchQuery,
+    activeFilter,
     addList,
     updateList,
     deleteList,
@@ -29,6 +32,7 @@ const HomeScreen = ({ navigation }) => {
     setSelectedLists,
     setSelectedTasks,
     clearSelections,
+    getFilteredTasks,
     saveData,
   } = useTaskStore()
 
@@ -43,8 +47,11 @@ const HomeScreen = ({ navigation }) => {
   const [editingList, setEditingList] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState({ visible: false })
+  const [fabRotation] = useState(new Animated.Value(0))
 
   const selectionMode = selectedLists.length > 0 || selectedTasks.length > 0
+  const filteredTasks = getFilteredTasks()
+  const isFiltering = searchQuery || activeFilter !== 'all'
 
   useEffect(() => {
     navigation.setOptions({
@@ -74,6 +81,19 @@ const HomeScreen = ({ navigation }) => {
         ) : null,
     })
   }, [selectionMode, selectedLists, selectedTasks, theme])
+
+  useEffect(() => {
+    Animated.timing(fabRotation, {
+      toValue: showAddOptions ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start()
+  }, [showAddOptions])
+
+  const fabRotate = fabRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg']
+  })
 
   const toggleListExpansion = (listId) => {
     setExpandedLists((prev) => ({
@@ -199,6 +219,24 @@ const HomeScreen = ({ navigation }) => {
     return lists.reduce((total, list) => total + list.tasks.length, 0)
   }
 
+  const renderFilteredTask = ({ item: task }) => (
+    <View style={styles.filteredTaskContainer}>
+      <View style={[styles.listBadge, { backgroundColor: task.listBgColor }]}>
+        <Text style={[styles.listBadgeText, { color: task.listColor }]}>
+          {task.listTitle}
+        </Text>
+      </View>
+      <TaskItem
+        task={task}
+        isSelected={selectedTasks.includes(`${task.listId}_${task.id}`)}
+        selectionMode={selectionMode}
+        onPress={(task) => handleTaskPress(task, task.listId)}
+        onLongPress={() => handleTaskLongPress(task, task.listId)}
+        onToggleComplete={(task) => handleToggleTaskComplete(task, task.listId)}
+      />
+    </View>
+  )
+
   const renderTask = (task, listId) => (
     <TaskItem
       key={task.id}
@@ -222,7 +260,9 @@ const HomeScreen = ({ navigation }) => {
       onPress={() => handleListPress(list)}
     >
       {list.tasks.length === 0 ? (
-        <Text style={[styles.emptyListText, { color: theme.textSecondary }]}>Nenhuma tarefa nesta lista</Text>
+        <Text style={[styles.emptyListText, { color: theme.textSecondary }]}>
+          Nenhuma tarefa nesta lista
+        </Text>
       ) : (
         list.tasks.map((task) => renderTask(task, list.id))
       )}
@@ -233,11 +273,43 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {getTotalTasks() === 0 ? (
+      {/* Barra de Busca e Filtros */}
+      <SearchFilterBar />
+
+      {/* Conteúdo */}
+      {getTotalTasks() === 0 && !isFiltering ? (
         <View style={styles.emptyState}>
           <Ionicons name="list-outline" size={80} color={theme.textSecondary} />
           <Text style={styles.emptyText}>Adicione sua primeira tarefa</Text>
+          <Text style={styles.emptySubtext}>
+            Toque no botão + para começar
+          </Text>
         </View>
+      ) : isFiltering ? (
+        filteredTasks.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="search-outline" size={80} color={theme.textSecondary} />
+            <Text style={styles.emptyText}>Nenhuma tarefa encontrada</Text>
+            <Text style={styles.emptySubtext}>
+              Tente ajustar seus filtros de busca
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {filteredTasks.length} tarefa{filteredTasks.length !== 1 ? 's' : ''} encontrada{filteredTasks.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <FlatList
+              data={filteredTasks}
+              keyExtractor={(item) => `${item.listId}_${item.id}`}
+              renderItem={renderFilteredTask}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.filteredListContent}
+            />
+          </>
+        )
       ) : (
         <FlatList
           data={lists}
@@ -248,11 +320,17 @@ const HomeScreen = ({ navigation }) => {
         />
       )}
 
+      {/* FAB */}
       {!selectionMode && (
         <>
-          <TouchableOpacity style={styles.fab} onPress={() => setShowAddOptions(!showAddOptions)}>
-            <AntDesign name={showAddOptions ? "close" : "plus"} size={24} color="white" />
-          </TouchableOpacity>
+          <Animated.View style={[styles.fab, { transform: [{ rotate: fabRotate }] }]}>
+            <TouchableOpacity
+              style={styles.fabButton}
+              onPress={() => setShowAddOptions(!showAddOptions)}
+            >
+              <AntDesign name="plus" size={24} color="white" />
+            </TouchableOpacity>
+          </Animated.View>
 
           {showAddOptions && (
             <View style={styles.fabOptions}>
@@ -282,6 +360,7 @@ const HomeScreen = ({ navigation }) => {
         </>
       )}
 
+      {/* Modais */}
       <ListModal
         visible={listModalVisible}
         list={editingList}
@@ -347,6 +426,45 @@ const createStyles = (theme) =>
       color: theme.textSecondary,
       textAlign: "center",
       marginTop: 20,
+      fontWeight: '600',
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      textAlign: "center",
+      marginTop: 8,
+    },
+    resultsHeader: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    resultsCount: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.primary,
+    },
+    filteredListContent: {
+      padding: 16,
+      paddingBottom: 100,
+    },
+    filteredTaskContainer: {
+      marginBottom: 8,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+      overflow: 'hidden',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+    },
+    listBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    listBadgeText: {
+      fontSize: 12,
+      fontWeight: 'bold',
     },
     listContent: {
       padding: 16,
@@ -361,6 +479,8 @@ const createStyles = (theme) =>
       position: "absolute",
       bottom: 30,
       right: 30,
+    },
+    fabButton: {
       width: 56,
       height: 56,
       borderRadius: 28,

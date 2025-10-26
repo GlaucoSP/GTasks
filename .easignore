@@ -9,6 +9,10 @@ android/build
 android/app/build
 ios/build
 
+# Pasta android (CNG/Prebuild)
+android
+ios
+
 # Cache do Metro
 .metro-health-check*
 
@@ -56,18 +60,3 @@ __tests__
 .prettierrc
 .eslintrc.js
 .eslintignore
-```
-
-## O que está deixando seu projeto pesado:
-
-Provavelmente é:
-1. **`node_modules`** - Se você commitou por engano (não deveria estar no build)
-2. **`android/build`** - Builds antigos do Android
-3. **`.expo`** - Cache do Expo
-4. **Arquivos grandes de mídia** - Imagens muito pesadas em `assets/`
-
-## Verifique também seu `.gitignore`:
-
-Seu `.gitignore` já está bom, mas certifique-se de que o `node_modules` está lá (e você deve ter):
-```
-node_modules/

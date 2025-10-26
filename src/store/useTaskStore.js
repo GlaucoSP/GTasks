@@ -9,6 +9,91 @@ const useTaskStore = create((set, get) => ({
   selectedTasks: [],
   isDarkMode: false,
   isLoading: true,
+  searchQuery: '',
+  activeFilter: 'all',
+  sortBy: 'deadline',
+
+  // Ações de busca e filtro
+  setSearchQuery: (query) => set({ searchQuery: query }),
+  setActiveFilter: (filter) => set({ activeFilter: filter }),
+  setSortBy: (sort) => set({ sortBy: sort }),
+
+  // Função para obter tarefas filtradas
+  getFilteredTasks: () => {
+    const state = get()
+    let allTasks = []
+    
+    // Coletar todas as tarefas de todas as listas
+    state.lists.forEach(list => {
+      list.tasks.forEach(task => {
+        allTasks.push({
+          ...task,
+          listId: list.id,
+          listTitle: list.title,
+          listColor: list.color,
+          listBgColor: list.bgColor
+        })
+      })
+    })
+
+    // Aplicar busca
+    if (state.searchQuery) {
+      const query = state.searchQuery.toLowerCase()
+      allTasks = allTasks.filter(task => 
+        task.title.toLowerCase().includes(query) ||
+        (task.description && task.description.toLowerCase().includes(query))
+      )
+    }
+
+    // Aplicar filtros
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    
+    switch (state.activeFilter) {
+      case 'today':
+        allTasks = allTasks.filter(task => {
+          const deadline = new Date(task.deadline)
+          deadline.setHours(0, 0, 0, 0)
+          return deadline.getTime() === now.getTime()
+        })
+        break
+      case 'week':
+        const weekFromNow = new Date(now)
+        weekFromNow.setDate(weekFromNow.getDate() + 7)
+        allTasks = allTasks.filter(task => {
+          const deadline = new Date(task.deadline)
+          deadline.setHours(0, 0, 0, 0)
+          return deadline >= now && deadline <= weekFromNow
+        })
+        break
+      case 'overdue':
+        allTasks = allTasks.filter(task => {
+          const deadline = new Date(task.deadline)
+          deadline.setHours(0, 0, 0, 0)
+          return deadline < now
+        })
+        break
+      case 'all':
+      default:
+        // Mostrar todas
+        break
+    }
+
+    // Aplicar ordenação
+    switch (state.sortBy) {
+      case 'deadline':
+        allTasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+        break
+      case 'title':
+        allTasks.sort((a, b) => a.title.localeCompare(b.title))
+        break
+      case 'recent':
+        allTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        break
+    }
+
+    return allTasks
+  },
 
   // Ações para listas
   setLists: (lists) => set({ lists }),
@@ -31,18 +116,15 @@ const useTaskStore = create((set, get) => ({
     set((state) => {
       const currentList = state.lists.find((list) => list.tasks.some((task) => task.id === taskId))
 
-      // If task is moving to a different list
       if (currentList && currentList.id !== updatedTask.listId) {
         return {
           lists: state.lists.map((list) => {
-            // Remove task from current list
             if (list.id === currentList.id) {
               return {
                 ...list,
                 tasks: list.tasks.filter((task) => task.id !== taskId),
               }
             }
-            // Add task to new list
             if (list.id === updatedTask.listId) {
               return {
                 ...list,
@@ -54,7 +136,6 @@ const useTaskStore = create((set, get) => ({
         }
       }
 
-      // If task stays in same list, just update it
       return {
         lists: state.lists.map((list) =>
           list.id === listId
@@ -167,7 +248,6 @@ const useTaskStore = create((set, get) => ({
       const completedTasks = completedData[1] ? JSON.parse(completedData[1]) : []
       const isDarkMode = darkModeData[1] ? JSON.parse(darkModeData[1]) : false
 
-      // Atualizar contador de dias para exclusão
       const updatedCompletedTasks = completedTasks
         .map((task) => {
           const completedDate = new Date(task.completedAt)
@@ -186,7 +266,6 @@ const useTaskStore = create((set, get) => ({
         isLoading: false,
       })
 
-      // Salvar dados atualizados se houve mudanças
       if (updatedCompletedTasks.length !== completedTasks.length) {
         await AsyncStorage.setItem("completedTasks", JSON.stringify(updatedCompletedTasks))
       }
