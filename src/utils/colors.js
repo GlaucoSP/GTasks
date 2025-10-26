@@ -28,20 +28,37 @@ export const darkTheme = {
   overlay: 'rgba(0,0,0,0.7)',
 };
 
-export const listColors = {
-  text: [
+// Cores para texto - funcionam bem em ambos os temas
+export const listTextColors = {
+  light: [
     '#1C1C1E', // Preto
-    '#FF3B30', // Vermelho
+    '#DC3545', // Vermelho
     '#007AFF', // Azul
-    '#34C759', // Verde
-    '#FF9500', // Laranja
-    '#AF52DE', // Roxo
-    '#FF2D55', // Rosa
+    '#28A745', // Verde
+    '#FD7E14', // Laranja
+    '#6F42C1', // Roxo
+    '#E83E8C', // Rosa
     '#5856D6', // Índigo
-    '#00C7BE', // Turquesa
-    '#FFCC00', // Amarelo
+    '#17A2B8', // Turquesa
+    '#FFC107', // Amarelo
   ],
-  background: [
+  dark: [
+    '#FFFFFF', // Branco
+    '#FF6B6B', // Vermelho suave
+    '#4DABF7', // Azul suave
+    '#51CF66', // Verde suave
+    '#FFA94D', // Laranja suave
+    '#9775FA', // Roxo suave
+    '#FF8AC7', // Rosa suave
+    '#748FFC', // Índigo suave
+    '#3BC9DB', // Turquesa suave
+    '#FFD43B', // Amarelo suave
+  ]
+};
+
+// Cores de fundo - paletas diferentes para cada tema
+export const listBackgroundColors = {
+  light: [
     '#F2F2F7', // Cinza claro
     '#FFEBEE', // Rosa claro
     '#E3F2FD', // Azul claro
@@ -52,7 +69,27 @@ export const listColors = {
     '#EDE7F6', // Índigo claro
     '#E0F2F1', // Turquesa claro
     '#FFF9C4', // Amarelo claro
+  ],
+  dark: [
+    '#2C2C2E', // Cinza escuro
+    '#3D1F1F', // Vermelho escuro
+    '#1A2F3D', // Azul escuro
+    '#1F3D24', // Verde escuro
+    '#3D2A1A', // Laranja escuro
+    '#2E1F3D', // Roxo escuro
+    '#3D1F2E', // Rosa escuro
+    '#252938', // Índigo escuro
+    '#1A3D3A', // Turquesa escuro
+    '#3D3A1A', // Amarelo escuro
   ]
+};
+
+// Função para obter as cores corretas baseado no tema
+export const getListColors = (isDarkMode) => {
+  return {
+    text: isDarkMode ? listTextColors.dark : listTextColors.light,
+    background: isDarkMode ? listBackgroundColors.dark : listBackgroundColors.light,
+  };
 };
 
 // Cores para status de tarefas
@@ -76,7 +113,9 @@ export const gradients = {
 export default {
   lightTheme,
   darkTheme,
-  listColors,
+  listTextColors,
+  listBackgroundColors,
+  getListColors,
   taskStatusColors,
   gradients,
 };

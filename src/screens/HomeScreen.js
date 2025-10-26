@@ -13,6 +13,7 @@ import TaskModal from "../components/TaskModal"
 import TaskDetailsModal from "../components/TaskDetailsModal"
 import ConfirmDialog from "../components/ConfirmDialog"
 import SearchFilterBar from "../components/SearchFilterBar"
+import Toast from "../components/Toast"
 
 const HomeScreen = ({ navigation }) => {
   const {
@@ -47,6 +48,7 @@ const HomeScreen = ({ navigation }) => {
   const [editingList, setEditingList] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState({ visible: false })
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
   const [fabRotation] = useState(new Animated.Value(0))
 
   const selectionMode = selectedLists.length > 0 || selectedTasks.length > 0
@@ -94,6 +96,10 @@ const HomeScreen = ({ navigation }) => {
     inputRange: [0, 1],
     outputRange: ['0deg', '45deg']
   })
+
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type })
+  }
 
   const toggleListExpansion = (listId) => {
     setExpandedLists((prev) => ({
@@ -148,9 +154,9 @@ const HomeScreen = ({ navigation }) => {
       visible: true,
       title: "Concluir Tarefa",
       message: "Você realmente terminou esta tarefa?",
-      onConfirm: () => {
-        completeTask(listId, task.id)
-        saveData()
+      onConfirm: async () => {
+        await completeTask(listId, task.id)
+        showToast('Tarefa concluída! 🎉', 'success')
         setConfirmDialog({ visible: false })
       },
       onCancel: () => setConfirmDialog({ visible: false }),
@@ -180,14 +186,17 @@ const HomeScreen = ({ navigation }) => {
       visible: true,
       title: "Confirmar Exclusão",
       message: `Deseja excluir ${totalSelected} item(ns) selecionado(s)?`,
-      onConfirm: () => {
+      onConfirm: async () => {
         selectedLists.forEach((listId) => deleteList(listId))
-        selectedTasks.forEach((taskKey) => {
+        
+        for (const taskKey of selectedTasks) {
           const [listId, taskId] = taskKey.split("_")
-          deleteTask(listId, taskId)
-        })
+          await deleteTask(listId, taskId)
+        }
+        
+        await saveData()
         clearSelections()
-        saveData()
+        showToast(`${totalSelected} item(ns) excluído(s)`, 'success')
         setConfirmDialog({ visible: false })
       },
       onCancel: () => setConfirmDialog({ visible: false }),
@@ -195,24 +204,38 @@ const HomeScreen = ({ navigation }) => {
   }
 
   const handleSaveList = async (listData) => {
-    if (editingList) {
-      updateList(editingList.id, listData)
-    } else {
-      addList(listData)
+    try {
+      if (editingList) {
+        updateList(editingList.id, listData)
+        showToast('Lista atualizada!', 'success')
+      } else {
+        addList(listData)
+        showToast('Lista criada!', 'success')
+      }
+      await saveData()
+      setEditingList(null)
+    } catch (error) {
+      showToast('Erro ao salvar lista', 'error')
     }
-    await saveData()
-    setEditingList(null)
   }
 
   const handleSaveTask = async (taskData) => {
-    if (editingTask) {
-      updateTask(editingTask.listId, editingTask.id, taskData)
-    } else {
-      addTask(taskData.listId, taskData)
-      await scheduleTaskNotification(taskData)
+    try {
+      if (editingTask) {
+        updateTask(editingTask.listId, editingTask.id, taskData)
+        await scheduleTaskNotification(taskData)
+        showToast('Tarefa atualizada!', 'success')
+      } else {
+        addTask(taskData.listId, taskData)
+        await scheduleTaskNotification(taskData)
+        showToast('Tarefa criada!', 'success')
+      }
+      await saveData()
+      setEditingTask(null)
+    } catch (error) {
+      showToast('Erro ao salvar tarefa', 'error')
+      console.error(error)
     }
-    await saveData()
-    setEditingTask(null)
   }
 
   const getTotalTasks = () => {
@@ -273,10 +296,8 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Barra de Busca e Filtros */}
       <SearchFilterBar />
 
-      {/* Conteúdo */}
       {getTotalTasks() === 0 && !isFiltering ? (
         <View style={styles.emptyState}>
           <Ionicons name="list-outline" size={80} color={theme.textSecondary} />
@@ -320,7 +341,6 @@ const HomeScreen = ({ navigation }) => {
         />
       )}
 
-      {/* FAB */}
       {!selectionMode && (
         <>
           <Animated.View style={[styles.fab, { transform: [{ rotate: fabRotate }] }]}>
@@ -360,7 +380,6 @@ const HomeScreen = ({ navigation }) => {
         </>
       )}
 
-      {/* Modais */}
       <ListModal
         visible={listModalVisible}
         list={editingList}
@@ -397,6 +416,13 @@ const HomeScreen = ({ navigation }) => {
         message={confirmDialog.message}
         onConfirm={confirmDialog.onConfirm}
         onCancel={confirmDialog.onCancel}
+      />
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
       />
     </SafeAreaView>
   )

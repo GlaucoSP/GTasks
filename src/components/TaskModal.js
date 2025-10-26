@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet, ScrollView, Image } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
-import DateTimePicker from "@react-native-community/datetimepicker"
+import DateTimePickerModal from "react-native-modal-datetime-picker"
 import { lightTheme, darkTheme } from "../utils/colors"
 import { formatDate, formatDateTime } from "../utils/dateUtils"
 import useTaskStore from "../store/useTaskStore"
@@ -19,8 +19,10 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
   const [description, setDescription] = useState("")
   const [remindAt, setRemindAt] = useState(null)
   const [image, setImage] = useState(null)
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [showReminderPicker, setShowReminderPicker] = useState(false)
+  
+  // Estados para os pickers
+  const [isDeadlinePickerVisible, setDeadlinePickerVisible] = useState(false)
+  const [isReminderPickerVisible, setReminderPickerVisible] = useState(false)
 
   useEffect(() => {
     if (task) {
@@ -61,6 +63,16 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
     }
   }
 
+  const handleDeadlineConfirm = (date) => {
+    setDeadline(date)
+    setDeadlinePickerVisible(false)
+  }
+
+  const handleReminderConfirm = (date) => {
+    setRemindAt(date)
+    setReminderPickerVisible(false)
+  }
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -74,6 +86,14 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
     }
   }
 
+  const removeReminder = () => {
+    setRemindAt(null)
+  }
+
+  const removeImage = () => {
+    setImage(null)
+  }
+
   const styles = createStyles(theme)
 
   return (
@@ -83,6 +103,7 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>{task ? "Editar Tarefa" : "Nova Tarefa"}</Text>
 
+            {/* Título */}
             <Text style={styles.fieldLabel}>Título *</Text>
             <TextInput
               style={styles.input}
@@ -90,8 +111,10 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
               placeholderTextColor={theme.textSecondary}
               value={title}
               onChangeText={setTitle}
+              autoFocus={!task}
             />
 
+            {/* Lista */}
             <Text style={styles.fieldLabel}>Lista *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.listSelector}>
@@ -100,11 +123,20 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
                     key={list.id}
                     style={[
                       styles.listOption,
-                      { backgroundColor: selectedList === list.id ? theme.primary : theme.surface },
+                      { 
+                        backgroundColor: selectedList === list.id ? theme.primary : theme.surface,
+                        borderWidth: 1,
+                        borderColor: selectedList === list.id ? theme.primary : theme.border,
+                      },
                     ]}
                     onPress={() => setSelectedList(list.id)}
                   >
-                    <Text style={[styles.listOptionText, { color: selectedList === list.id ? "#FFFFFF" : theme.text }]}>
+                    <Text 
+                      style={[
+                        styles.listOptionText, 
+                        { color: selectedList === list.id ? "#FFFFFF" : theme.text }
+                      ]}
+                    >
                       {list.title}
                     </Text>
                   </TouchableOpacity>
@@ -112,12 +144,20 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
               </View>
             </ScrollView>
 
+            {/* Prazo */}
             <Text style={styles.fieldLabel}>Prazo *</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.dateButtonText}>{formatDate(deadline)}</Text>
-              <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+            <TouchableOpacity 
+              style={styles.dateButton} 
+              onPress={() => setDeadlinePickerVisible(true)}
+            >
+              <View style={styles.dateButtonContent}>
+                <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+                <Text style={styles.dateButtonText}>{formatDate(deadline)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
 
+            {/* Descrição */}
             <Text style={styles.fieldLabel}>Descrição</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -127,68 +167,111 @@ const TaskModal = ({ visible, task, lists, onClose, onSave }) => {
               onChangeText={setDescription}
               multiline
               numberOfLines={3}
+              textAlignVertical="top"
             />
 
+            {/* Lembrete */}
             <Text style={styles.fieldLabel}>Lembrete personalizado</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowReminderPicker(true)}>
-              <Text style={styles.dateButtonText}>
-                {remindAt ? formatDateTime(remindAt) : "Definir lembrete (opcional)"}
-              </Text>
-              <Ionicons name="notifications-outline" size={20} color={theme.primary} />
-            </TouchableOpacity>
+            {remindAt ? (
+              <View style={styles.reminderContainer}>
+                <View style={styles.reminderInfo}>
+                  <Ionicons name="notifications" size={20} color={theme.primary} />
+                  <Text style={styles.reminderText}>{formatDateTime(remindAt)}</Text>
+                </View>
+                <TouchableOpacity onPress={removeReminder} style={styles.removeButton}>
+                  <Ionicons name="close-circle" size={24} color={theme.error} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.dateButton} 
+                onPress={() => setReminderPickerVisible(true)}
+              >
+                <View style={styles.dateButtonContent}>
+                  <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
+                  <Text style={[styles.dateButtonText, { color: theme.textSecondary }]}>
+                    Definir lembrete (opcional)
+                  </Text>
+                </View>
+                <Ionicons name="add" size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
 
+            {/* Imagem */}
             <Text style={styles.fieldLabel}>Imagem</Text>
-            <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-              {image ? (
+            {image ? (
+              <View style={styles.imageContainer}>
                 <Image source={{ uri: image }} style={styles.selectedImage} />
-              ) : (
+                <TouchableOpacity 
+                  style={styles.removeImageButton}
+                  onPress={removeImage}
+                >
+                  <Ionicons name="close-circle" size={28} color={theme.error} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
                 <View style={styles.imagePlaceholder}>
                   <Ionicons name="image-outline" size={40} color={theme.textSecondary} />
-                  <Text style={styles.imagePlaceholderText}>Selecionar imagem</Text>
+                  <Text style={styles.imagePlaceholderText}>Adicionar imagem (opcional)</Text>
                 </View>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
 
+            {/* Botões */}
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+              <TouchableOpacity 
+                style={[styles.button, styles.cancelButton]} 
+                onPress={onClose}
+              >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Salvar</Text>
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.saveButton,
+                  !title.trim() && styles.disabledButton
+                ]} 
+                onPress={handleSave}
+                disabled={!title.trim()}
+              >
+                <Text style={styles.saveButtonText}>
+                  {task ? "Atualizar" : "Criar"}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
       </View>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={deadline}
-          mode="date"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false)
-            if (selectedDate) {
-              setDeadline(selectedDate)
-            }
-          }}
-        />
-      )}
+      {/* Date Picker para Prazo */}
+      <DateTimePickerModal
+        isVisible={isDeadlinePickerVisible}
+        mode="date"
+        onConfirm={handleDeadlineConfirm}
+        onCancel={() => setDeadlinePickerVisible(false)}
+        date={deadline}
+        minimumDate={new Date()}
+        isDarkModeEnabled={isDarkMode}
+        locale="pt_BR"
+        confirmTextIOS="Confirmar"
+        cancelTextIOS="Cancelar"
+      />
 
-      {showReminderPicker && (
-        <DateTimePicker
-          value={remindAt || new Date()}
-          mode="datetime"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowReminderPicker(false)
-            if (selectedDate) {
-              setRemindAt(selectedDate)
-            }
-          }}
-        />
-      )}
+      {/* DateTime Picker para Lembrete */}
+      <DateTimePickerModal
+        isVisible={isReminderPickerVisible}
+        mode="datetime"
+        onConfirm={handleReminderConfirm}
+        onCancel={() => setReminderPickerVisible(false)}
+        date={remindAt || new Date()}
+        minimumDate={new Date()}
+        isDarkModeEnabled={isDarkMode}
+        locale="pt_BR"
+        confirmTextIOS="Confirmar"
+        cancelTextIOS="Cancelar"
+      />
     </Modal>
   )
 }
@@ -206,7 +289,7 @@ const createStyles = (theme) =>
       borderRadius: 16,
       padding: 24,
       width: "90%",
-      maxHeight: "80%",
+      maxHeight: "85%",
     },
     title: {
       fontSize: 24,
@@ -233,7 +316,7 @@ const createStyles = (theme) =>
     },
     textArea: {
       height: 80,
-      textAlignVertical: "top",
+      paddingTop: 12,
     },
     listSelector: {
       flexDirection: "row",
@@ -241,13 +324,13 @@ const createStyles = (theme) =>
     },
     listOption: {
       paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingVertical: 10,
       borderRadius: 20,
       marginRight: 8,
     },
     listOptionText: {
       fontSize: 14,
-      fontWeight: "500",
+      fontWeight: "600",
     },
     dateButton: {
       flexDirection: "row",
@@ -259,22 +342,63 @@ const createStyles = (theme) =>
       padding: 12,
       backgroundColor: theme.surface,
     },
+    dateButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
     dateButtonText: {
       fontSize: 16,
       color: theme.text,
+    },
+    reminderContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 8,
+      padding: 12,
+      backgroundColor: theme.primary + '10',
+    },
+    reminderInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      gap: 8,
+    },
+    reminderText: {
+      fontSize: 16,
+      color: theme.text,
+      fontWeight: '500',
+    },
+    removeButton: {
+      padding: 4,
     },
     imageButton: {
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: 8,
       padding: 12,
-      alignItems: "center",
       backgroundColor: theme.surface,
+      borderStyle: 'dashed',
+    },
+    imageContainer: {
+      position: 'relative',
+      alignItems: 'center',
     },
     selectedImage: {
-      width: 100,
-      height: 100,
+      width: '100%',
+      height: 200,
       borderRadius: 8,
+      resizeMode: 'cover',
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: theme.background,
+      borderRadius: 14,
     },
     imagePlaceholder: {
       alignItems: "center",
@@ -283,28 +407,34 @@ const createStyles = (theme) =>
     imagePlaceholderText: {
       marginTop: 8,
       color: theme.textSecondary,
+      fontSize: 14,
     },
     buttonContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       marginTop: 24,
+      gap: 12,
     },
     button: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: 14,
       borderRadius: 8,
       alignItems: "center",
     },
     cancelButton: {
       backgroundColor: theme.surface,
-      marginRight: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
     },
     saveButton: {
       backgroundColor: theme.primary,
-      marginLeft: 8,
+    },
+    disabledButton: {
+      backgroundColor: theme.border,
+      opacity: 0.5,
     },
     cancelButtonText: {
-      color: theme.textSecondary,
+      color: theme.text,
       fontSize: 16,
       fontWeight: "600",
     },
